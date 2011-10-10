@@ -6,6 +6,7 @@
 <!ENTITY xfce-gdk-extensions SYSTEM "xml/xfce-gdk-extensions.xml">
 <!ENTITY xfce-gtk-extensions SYSTEM "xml/xfce-gtk-extensions.xml">
 <!ENTITY xfce-dialogs SYSTEM "xml/xfce-dialogs.xml">
+<!ENTITY xfce-root-warning SYSTEM "xml/xfce-root-warning.xml">
 <!ENTITY xfce-titled-dialog SYSTEM "xml/xfce-titled-dialog.xml">
 <!ENTITY xfce-sm-client SYSTEM "xml/xfce-sm-client.xml">
 
@@ -69,6 +70,7 @@
   <part id="libxfce4ui-widgets">
     <title>Xfce UI Widget</title>
     &xfce-dialogs;
+    &xfce-root-warning;
     &xfce-titled-dialog;
   </part>
 

@@ -48,6 +48,45 @@ XFCE_BUTTON_TYPE_PIXBUF
 </SECTION>
 
 <SECTION>
+<FILE>xfce-root-warning</FILE>
+XfceRootWarning
+xfce_root_warning_new
+xfce_root_warning_auto_pack
+xfce_root_warning_get_activated
+xfce_root_warning_get_bg_color
+xfce_root_warning_set_bg_color
+xfce_root_warning_get_can_dismiss
+xfce_root_warning_set_can_dismiss
+xfce_root_warning_get_dismissed
+xfce_root_warning_set_dismissed
+xfce_root_warning_get_fg_color
+xfce_root_warning_set_fg_color
+xfce_root_warning_get_highlight
+xfce_root_warning_set_highlight
+xfce_root_warning_get_message
+xfce_root_warning_set_message
+xfce_root_warning_set_message_markup
+xfce_root_warning_get_padding
+xfce_root_warning_set_padding
+xfce_root_warning_get_show_icon
+xfce_root_warning_set_show_icon
+<SUBSECTION Standard>
+XfceRootWarningClass
+XFCE_IS_ROOT_WARNING
+XFCE_IS_ROOT_WARNING_CLASS
+XFCE_ROOT_WARNING
+XFCE_ROOT_WARNING_CLASS
+XFCE_ROOT_WARNING_GET_CLASS
+XFCE_TYPE_ROOT_WARNING
+<SUBSECTION Private>
+XfceRootWarningPrivate
+xfce_root_warning_get_type
+DISABLE_ROOT_CHECK
+FORCE_GTKINFOBAR
+USE_INFOBAR
+</SECTION>
+
+<SECTION>
 <FILE>xfce-titled-dialog</FILE>
 XfceTitledDialog
 xfce_titled_dialog_new
