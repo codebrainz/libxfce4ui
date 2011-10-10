@@ -23,6 +23,7 @@ libxfce4ui_headers = \
 	xfce-dialogs.h \
 	xfce-gdk-extensions.h \
 	xfce-gtk-extensions.h \
+	xfce-root-warning.h \
 	xfce-spawn.h \
 	xfce-titled-dialog.h \
 	$(libxfce4ui_enum_headers)
@@ -51,6 +52,7 @@ libxfce4ui_1_la_SOURCES = \
 	xfce-gtk-extensions.c \
 	xfce-heading.c \
 	xfce-heading.h \
+	xfce-root-warning.c \
 	xfce-sm-client.c \
 	xfce-spawn.c \
 	xfce-titled-dialog.c
@@ -77,6 +79,22 @@ libxfce4ui_1_la_LIBADD = \
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libxfce4ui-1.pc
+
+
+##
+## Demo/test program for XfceRootWarning
+##
+noinst_PROGRAMS = xfce-root-warning-demo
+
+xfce_root_warning_demo_SOURCES = \
+	xfce-root-warning-demo.c
+
+xfce_root_warning_demo_CFLAGS = \
+	@GTK_CFLAGS@
+
+xfce_root_warning_demo_LDFLAGS = \
+	@GTK_LIBS@ \
+	$(top_srcdir)/libxfce4ui/libxfce4ui-1.la
 
 
 ##

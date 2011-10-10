@@ -28,6 +28,7 @@
 #include <libxfce4ui/xfce-dialogs.h>
 #include <libxfce4ui/xfce-gdk-extensions.h>
 #include <libxfce4ui/xfce-gtk-extensions.h>
+#include <libxfce4ui/xfce-root-warning.h>
 #include <libxfce4ui/xfce-spawn.h>
 #include <libxfce4ui/xfce-sm-client.h>
 #include <libxfce4ui/xfce-titled-dialog.h>
