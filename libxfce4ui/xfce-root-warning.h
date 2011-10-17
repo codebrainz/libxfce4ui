@@ -24,14 +24,8 @@
 
 G_BEGIN_DECLS
 
-#define FORCE_GTKINFOBAR   0  /* flip to 1 to enable GtkInfoBar stuff */
+
 #define DISABLE_ROOT_CHECK 1  /* flip to 1 for testing as non-root */
-
-
-#if GTK_CHECK_VERSION(2, 18, 0) && \
-  defined(FORCE_GTKINFOBAR) && FORCE_GTKINFOBAR == 1
-#  define USE_INFOBAR
-#endif
 
 
 #define XFCE_TYPE_ROOT_WARNING            (xfce_root_warning_get_type())
@@ -49,23 +43,14 @@ typedef struct _XfceRootWarningPrivate  XfceRootWarningPrivate;
 
 struct _XfceRootWarning
 {
-#ifdef USE_INFOBAR
   GtkInfoBar  parent;
-#else
-  GtkEventBox parent;
-#endif
-
   XfceRootWarningPrivate *priv;
 };
 
 
 struct _XfceRootWarningClass
 {
-#ifdef USE_INFOBAR
   GtkInfoBarClass parent_class;
-#else
-  GtkEventBoxClass parent_class;
-#endif
 };
 
 
@@ -89,23 +74,16 @@ gboolean        xfce_root_warning_get_activated      (XfceRootWarning *warning);
 gboolean        xfce_root_warning_get_show_icon      (XfceRootWarning *warning);
 void            xfce_root_warning_set_show_icon      (XfceRootWarning *warning,
                                                       gboolean         show_icon);
-
-#ifndef USE_INFOBAR
-
 const GdkColor *xfce_root_warning_get_fg_color       (XfceRootWarning *warning);
 void            xfce_root_warning_set_fg_color       (XfceRootWarning *warning,
                                                       const GdkColor  *fg_color);
 const GdkColor *xfce_root_warning_get_bg_color       (XfceRootWarning *warning);
 void            xfce_root_warning_set_bg_color       (XfceRootWarning *warning,
                                                       const GdkColor  *bg_color);
-gboolean        xfce_root_warning_get_highlight      (XfceRootWarning *warning);
-void            xfce_root_warning_set_highlight      (XfceRootWarning *warning,
-                                                      gboolean         highlight);
 guint           xfce_root_warning_get_padding        (XfceRootWarning *warning);
 void            xfce_root_warning_set_padding        (XfceRootWarning *warning,
                                                       guint            padding);
 
-#endif
 
 G_END_DECLS
 

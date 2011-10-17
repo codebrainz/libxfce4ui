@@ -115,18 +115,6 @@ on_message_text_notify (GObject         *object,
 }
 
 
-#ifndef USE_INFOBAR
-
-static void
-on_highlight_checked (GtkToggleButton *button,
-                      XfceRootWarning *warning)
-{
-  gboolean active;
-  active = gtk_toggle_button_get_active (button);
-  xfce_root_warning_set_highlight (warning, active);
-}
-
-
 static void
 on_fg_color_set (GtkColorButton  *button,
                  XfceRootWarning *warning)
@@ -156,26 +144,20 @@ on_padding_value_changed (GtkSpinButton   *button,
   xfce_root_warning_set_padding (warning, (guint) value);
 }
 
-#endif /* USE_INFOBAR */
-
 
 static GtkWidget *
 build_widgets (XfceRootWarning *warning)
 {
   gint           row = 0;
-  gint           rows = 3;
+  gint           rows = 6;
   GtkWidget     *table;
   GtkWidget     *label;
   GtkWidget     *check;
   GtkWidget     *hbox;
   GtkWidget     *ent;
-#ifndef USE_INFOBAR
   GtkWidget     *clr;
   GtkWidget     *spin;
   GtkAdjustment *adjust;
-
-  rows = 7;
-#endif
 
   table = gtk_table_new (rows, 2, FALSE);
   gtk_table_set_col_spacings (GTK_TABLE (table), 6);
@@ -239,8 +221,6 @@ build_widgets (XfceRootWarning *warning)
 
   row++;
 
-#ifndef USE_INFOBAR
-
   label = gtk_label_new ("Padding:");
   gtk_misc_set_alignment (GTK_MISC (label), 0.0, 0.5);
   gtk_table_attach (GTK_TABLE (table), label, 0, 1, row, row + 1, GTK_FILL, GTK_FILL, 0, 0);
@@ -251,18 +231,6 @@ build_widgets (XfceRootWarning *warning)
   gtk_table_attach (GTK_TABLE (table), spin, 1, 2, row, row + 1, GTK_FILL, GTK_FILL, 0, 0);
 
   row ++;
-
-  label = gtk_label_new ("Highlight?");
-  gtk_misc_set_alignment (GTK_MISC (label), 0.0, 0.5);
-  gtk_table_attach (GTK_TABLE (table), label, 0, 1, row, row + 1, GTK_FILL, GTK_FILL, 0, 0);
-
-  check = gtk_check_button_new ();
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (check),
-                                xfce_root_warning_get_highlight (warning));
-  g_signal_connect (check, "toggled", G_CALLBACK (on_highlight_checked), warning);
-  gtk_table_attach_defaults (GTK_TABLE (table), check, 1, 2, row, row + 1);
-
-  row++;
 
   label = gtk_label_new ("FG Color:");
   gtk_misc_set_alignment (GTK_MISC (label), 0.0, 0.5);
@@ -283,8 +251,6 @@ build_widgets (XfceRootWarning *warning)
   gtk_table_attach_defaults (GTK_TABLE (table), clr, 1, 2, row, row + 1);
 
   row++;
-
-#endif /* USE_INFOBAR */
 
   gtk_widget_show_all (table);
 

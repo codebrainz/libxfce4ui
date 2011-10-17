@@ -134,22 +134,10 @@
 #endif
 
 
-#ifndef USE_INFOBAR
-
 /* defaults used if not over-ridden through resource file styles */
 #define DEFAULT_BG_COLOR "#B4254B"
 #define DEFAULT_FG_COLOR "#FEFEFE"
 #define DEFAULT_PADDING  6
-
-/* hold colours in the same units that cairo wants */
-struct CairoColor
-{
-    gdouble red;
-    gdouble green;
-    gdouble blue;
-};
-
-#endif /* USE_INFOBAR */
 
 
 struct _XfceRootWarningPrivate
@@ -160,14 +148,9 @@ struct _XfceRootWarningPrivate
   gboolean          dismissed;      /* whether the warning has been dismissed */
   gboolean          can_dismiss;    /* whether the dismiss button is shown */
   gboolean          show_icon;      /* whether to show the warning icon */
-#ifndef USE_INFOBAR
-  GtkWidget        *hbox;           /* hbox that holds internal widgets */
   GdkColor          fg_color;       /* warning message text color */
   GdkColor          bg_color;       /* bg colour under the highlight gradient */
-  struct CairoColor cairo_bg_color; /* stores bg_color as doubles */
-  gboolean          highlight;      /* whether to draw gradient highlight */
   guint             padding;        /* spacing around internal widgets */
-#endif
 };
 
 
@@ -186,12 +169,9 @@ enum
   PROP_CAN_DISMISS,
   PROP_ACTIVATED,
   PROP_SHOW_ICON,
-#ifndef USE_INFOBAR
   PROP_FG_COLOR,
   PROP_BG_COLOR,
-  PROP_HIGHLIGHT,
   PROP_PADDING,
-#endif
   PROP_LAST
 };
 
@@ -201,10 +181,6 @@ static guint signals[SIGNAL_LAST];
 
 static void     xfce_root_warning_finalize       (GObject         *object);
 static void     xfce_root_warning_show           (GtkWidget       *widget);
-#ifndef USE_INFOBAR
-static gboolean xfce_root_warning_expose         (GtkWidget       *widget,
-                                                  GdkEventExpose  *expose);
-#endif
 static void     xfce_root_warning_create_ui      (XfceRootWarning *warning);
 static void     xfce_root_warning_get_property   (GObject         *object,
                                                   guint            property_id,
@@ -216,12 +192,10 @@ static void     xfce_root_warning_set_property   (GObject         *object,
                                                   GParamSpec      *pspec);
 static void     xfce_root_warning_button_clicked (GtkButton       *button,
                                                   XfceRootWarning *warning);
+static void     xfce_root_warning_update_colors  (XfceRootWarning *warning);
 
-#ifdef USE_INFOBAR
+
 G_DEFINE_TYPE (XfceRootWarning, xfce_root_warning, GTK_TYPE_INFO_BAR)
-#else
-G_DEFINE_TYPE (XfceRootWarning, xfce_root_warning, GTK_TYPE_EVENT_BOX)
-#endif
 
 
 static void
@@ -230,6 +204,32 @@ xfce_root_warning_class_init (XfceRootWarningClass *klass)
   GObjectClass   *gobject_class;
   GtkWidgetClass *widget_class;
 
+  /* remove extra padding/spacing in the dismiss button and set
+   * colors used for info bar */
+  gtk_rc_parse_string(
+    "style \"xfce-root-warning-button-style\" {\n"
+    "  GtkWidget::focus-padding = 0\n"
+    "  GtkWidget::focus-line-width = 0\n"
+    "  xthickness = 0\n"
+    "  ythickness = 0\n"
+    "}\n"
+    "widget \"*.xfce-root-warning-button\" style \"xfce-root-warning-button-style\"\n"
+    "\n"
+    "style \"xfce-root-warning-style\" {\n"
+    "  color[\"info_bg_color\"] = \"" DEFAULT_BG_COLOR "\"\n"
+    "  color[\"info_fg_color\"] = \"" DEFAULT_FG_COLOR "\"\n"
+    "  color[\"warning_bg_color\"] = \"" DEFAULT_BG_COLOR "\"\n"
+    "  color[\"warning_fg_color\"] = \"" DEFAULT_FG_COLOR "\"\n"
+    "  color[\"question_bg_color\"] = \"" DEFAULT_BG_COLOR "\"\n"
+    "  color[\"question_fg_color\"] = \"" DEFAULT_FG_COLOR "\"\n"
+    "  color[\"error_bg_color\"] = \"" DEFAULT_BG_COLOR "\"\n"
+    "  color[\"error_fg_color\"] = \"" DEFAULT_FG_COLOR "\"\n"
+    "  color[\"other_bg_color\"] = \"" DEFAULT_BG_COLOR "\"\n"
+    "  color[\"other_fg_color\"] = \"" DEFAULT_FG_COLOR "\"\n"
+    "}\n"
+    "class \"XfceRootWarning\" style \"xfce-root-warning-style\"\n"
+  );
+
   gobject_class = G_OBJECT_CLASS (klass);
   gobject_class->finalize = xfce_root_warning_finalize;
   gobject_class->get_property = xfce_root_warning_get_property;
@@ -237,10 +237,6 @@ xfce_root_warning_class_init (XfceRootWarningClass *klass)
 
   widget_class = GTK_WIDGET_CLASS (klass);
   widget_class->show = xfce_root_warning_show;
-
-#ifndef USE_INFOBAR
-  widget_class->expose_event = xfce_root_warning_expose;
-#endif
 
   /*
    * Signals
@@ -326,8 +322,6 @@ xfce_root_warning_class_init (XfceRootWarningClass *klass)
                           FALSE,
                           G_PARAM_CONSTRUCT | G_PARAM_READWRITE));
 
-#ifndef USE_INFOBAR
-
   g_object_class_install_property (
     gobject_class,
     PROP_BG_COLOR,
@@ -345,16 +339,6 @@ xfce_root_warning_class_init (XfceRootWarningClass *klass)
                         "The color of the widget's background",
                         GDK_TYPE_COLOR,
                         G_PARAM_CONSTRUCT | G_PARAM_READWRITE));
-
-  g_object_class_install_property (
-    gobject_class,
-    PROP_HIGHLIGHT,
-    g_param_spec_boolean ("highlight",
-                          "Highlight",
-                          "Whether to draw a highlighting gradient "
-                          "over the widget's background",
-                          FALSE,
-                          G_PARAM_CONSTRUCT | G_PARAM_READWRITE));
 
   g_object_class_install_property (
     gobject_class,
@@ -392,8 +376,6 @@ xfce_root_warning_class_init (XfceRootWarningClass *klass)
                       0, 100, DEFAULT_PADDING,
                       G_PARAM_READABLE));
 
-#endif /* USE_INFOBAR */
-
   g_type_class_add_private ((gpointer)klass, sizeof(XfceRootWarningPrivate));
 }
 
@@ -429,20 +411,15 @@ xfce_root_warning_get_property (GObject    *object,
     case PROP_SHOW_ICON:
       g_value_set_boolean (value, xfce_root_warning_get_show_icon (warning));
       break;
-#ifndef USE_INFOBAR
     case PROP_FG_COLOR:
       g_value_set_boxed (value, xfce_root_warning_get_fg_color (warning));
       break;
     case PROP_BG_COLOR:
       g_value_set_boxed (value, xfce_root_warning_get_bg_color (warning));
       break;
-    case PROP_HIGHLIGHT:
-      g_value_set_boolean (value, xfce_root_warning_get_highlight (warning));
-      break;
     case PROP_PADDING:
       g_value_set_uint (value, xfce_root_warning_get_padding (warning));
       break;
-#endif
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -469,20 +446,15 @@ xfce_root_warning_set_property (GObject      *object,
     case PROP_SHOW_ICON:
       xfce_root_warning_set_show_icon (warning, g_value_get_boolean (value));
       break;
-#ifndef USE_INFOBAR
     case PROP_FG_COLOR:
       xfce_root_warning_set_fg_color (warning, g_value_get_boxed (value));
       break;
     case PROP_BG_COLOR:
       xfce_root_warning_set_bg_color (warning, g_value_get_boxed (value));
       break;
-    case PROP_HIGHLIGHT:
-      xfce_root_warning_set_highlight (warning, g_value_get_boolean (value));
-      break;
     case PROP_PADDING:
       xfce_root_warning_set_padding (warning, g_value_get_uint (value));
       break;
-#endif
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -512,96 +484,9 @@ xfce_root_warning_show (GtkWidget *widget)
 }
 
 
-#ifndef USE_INFOBAR
-
-static gboolean
-xfce_root_warning_expose (GtkWidget      *widget,
-                          GdkEventExpose *event)
-{
-  GdkWindow       *window;
-  cairo_t         *cr;
-  cairo_pattern_t *pat;
-  XfceRootWarning *warning;
-
-  g_return_val_if_fail (XFCE_IS_ROOT_WARNING (widget), FALSE);
-
-  warning = XFCE_ROOT_WARNING (widget);
-  window = gtk_widget_get_window (widget);
-
-  /* create a new context to draw on from the widget's window */
-  cr = gdk_cairo_create (GDK_DRAWABLE (window));
-
-  /* set a clip region for the expose event */
-  cairo_rectangle      (cr,
-                        event->area.x,
-                        event->area.y,
-                        event->area.width,
-                        event->area.height);
-  cairo_clip (cr);
-
-  /* rectangle the whole size of the widget */
-  cairo_rectangle      (cr,
-                        widget->allocation.x,
-                        widget->allocation.y,
-                        widget->allocation.width,
-                        widget->allocation.height);
-
-  /* set the bg colour from the widget's "bg-color" property */
-  cairo_set_source_rgb (cr,
-                        warning->priv->cairo_bg_color.red,
-                        warning->priv->cairo_bg_color.green,
-                        warning->priv->cairo_bg_color.blue);
-
-  /* apply the colour to the widget's background */
-  cairo_fill (cr);
-
-  /* draw the highlighting gradient overlayed on the background */
-  if (warning->priv->highlight)
-    {
-      pat = cairo_pattern_create_linear (0.0, 0.0, 0.0, widget->allocation.height);
-
-      /* from white 20% at the top to white 0% at the centre */
-      cairo_pattern_add_color_stop_rgba (pat, 0.0, 1.0, 1.0, 1.0, 0.20);
-      cairo_pattern_add_color_stop_rgba (pat, 0.5, 1.0, 1.0, 1.0, 0.0);
-
-      /* from black 0% at the centre to black 8% at the bottom */
-      cairo_pattern_add_color_stop_rgba (pat, 0.5, 0.0, 0.0, 0.0, 0.0);
-      cairo_pattern_add_color_stop_rgba (pat, 1.0, 0.0, 0.0, 0.0, 0.08);
-
-      /* rectangle the whole size of the widget */
-      cairo_rectangle  (cr,
-                        widget->allocation.x,
-                        widget->allocation.y,
-                        widget->allocation.width,
-                        widget->allocation.height);
-
-      /* apply gradient */
-      cairo_set_source (cr, pat);
-      cairo_fill (cr);
-
-      /* cleanup */
-      cairo_pattern_destroy (pat);
-    }
-
-  /* cleanup */
-  cairo_destroy (cr);
-
-  return GTK_WIDGET_CLASS (xfce_root_warning_parent_class)->expose_event (widget, event);
-}
-#endif /* USE_INFOBAR */
-
-
 static void
 xfce_root_warning_init (XfceRootWarning *warning)
 {
-#ifndef USE_INFOBAR
-  gchar    *bg_color = NULL;
-  gchar    *fg_color = NULL;
-  GdkColor  color_fg;
-  GdkColor  color_bg;
-  guint     padding;
-#endif
-
   warning->priv = G_TYPE_INSTANCE_GET_PRIVATE (warning,
                                                XFCE_TYPE_ROOT_WARNING,
                                                XfceRootWarningPrivate);
@@ -612,45 +497,12 @@ xfce_root_warning_init (XfceRootWarning *warning)
   warning->priv->dismissed      = FALSE;
   warning->priv->can_dismiss    = FALSE;
   warning->priv->show_icon      = FALSE;
-
-#ifndef USE_INFOBAR
   warning->priv->padding        = DEFAULT_PADDING;
 
   gdk_color_parse (DEFAULT_FG_COLOR, &warning->priv->fg_color);
   gdk_color_parse (DEFAULT_BG_COLOR, &warning->priv->bg_color);
 
-  warning->priv->cairo_bg_color.red   = (gdouble) ((gdouble) warning->priv->bg_color.red / (gdouble) G_MAXUINT16);
-  warning->priv->cairo_bg_color.green = (gdouble) ((gdouble) warning->priv->bg_color.green / (gdouble) G_MAXUINT16);
-  warning->priv->cairo_bg_color.blue  = (gdouble) ((gdouble) warning->priv->bg_color.blue / (gdouble) G_MAXUINT16);
-#endif
-
   xfce_root_warning_create_ui (warning);
-
-#ifndef USE_INFOBAR
-  /* set defaults that can be overridden by rc styles below */
-  //gdk_color_parse (DEFAULT_FG_COLOR, &color_fg);
-  //gdk_color_parse (DEFAULT_BG_COLOR, &color_bg);
-  //xfce_root_warning_set_fg_color (warning, &color_fg);
-  //xfce_root_warning_set_bg_color (warning, &color_bg);
-  /* get the style properties from any rc files
-   * this is supposed to override settings in regular properties */
-  gtk_widget_style_get (GTK_WIDGET (warning),
-                        "bg-color", &bg_color,
-                        "fg-color", &fg_color,
-                        "padding", &padding,
-                        NULL);
-
-  gdk_color_parse (fg_color ? fg_color : DEFAULT_FG_COLOR, &color_fg);
-  gdk_color_parse (bg_color ? bg_color : DEFAULT_BG_COLOR, &color_bg);
-
-  xfce_root_warning_set_fg_color (warning, &color_fg);
-  xfce_root_warning_set_bg_color (warning, &color_bg);
-  xfce_root_warning_set_padding (warning, padding);
-
-  gtk_event_box_set_above_child (GTK_EVENT_BOX (warning), FALSE);
-  gtk_event_box_set_visible_window (GTK_EVENT_BOX (warning), FALSE);
-#endif
-
 }
 
 
@@ -693,17 +545,7 @@ xfce_root_warning_create_ui (XfceRootWarning *warning)
                                       XFCE_TYPE_ROOT_WARNING,
                                       XfceRootWarningPrivate);
 
-  /* remove extra padding/spacing in the dismiss button */
-  gtk_rc_parse_string(
-    "style \"xfce-gtk-root-warning-button-style\" {\n"
-    " GtkWidget::focus-padding = 0\n"
-    " GtkWidget::focus-line-width = 0\n"
-    " xthickness = 0\n"
-    " ythickness = 0\n"
-    "}\n"
-    "widget \"*.xfce-gtk-root-warning-button\" "
-    "style \"xfce-gtk-root-warning-button-style\""
-  );
+  gtk_info_bar_set_message_type (GTK_INFO_BAR (warning), GTK_MESSAGE_WARNING);
 
   /* warning icon */
   priv->warning_image = gtk_image_new_from_stock (GTK_STOCK_DIALOG_WARNING, GTK_ICON_SIZE_MENU);
@@ -713,13 +555,14 @@ xfce_root_warning_create_ui (XfceRootWarning *warning)
   priv->label = gtk_label_new (DEFAULT_MESSAGE);
   /* ellipsize the string to not force parent widget's minimum size */
   gtk_label_set_ellipsize (GTK_LABEL (priv->label), PANGO_ELLIPSIZE_END);
+  gtk_widget_modify_fg (priv->label, GTK_STATE_NORMAL, &(priv->fg_color));
   gtk_widget_show (priv->label);
 
   /* dismiss button */
   image = gtk_image_new_from_stock (GTK_STOCK_CLOSE, GTK_ICON_SIZE_MENU);
   priv->dismiss_button = gtk_button_new ();
   gtk_widget_set_can_focus (priv->dismiss_button, FALSE);
-  gtk_widget_set_name (priv->dismiss_button, "xfce-gtk-root-warning-button");
+  gtk_widget_set_name (priv->dismiss_button, "xfce-root-warning-button");
   g_signal_connect (priv->dismiss_button, "style-set",
                     G_CALLBACK (xfce_root_warning_button_style_set), NULL);
   g_signal_connect (priv->dismiss_button, "clicked",
@@ -728,32 +571,12 @@ xfce_root_warning_create_ui (XfceRootWarning *warning)
   gtk_widget_show (image);
   gtk_widget_set_visible (GTK_WIDGET (priv->dismiss_button), warning->priv->can_dismiss);
 
-#ifdef USE_INFOBAR
-
   /* hide the action area in the info bar since it's not used */
   hbox = gtk_info_bar_get_action_area (GTK_INFO_BAR (warning));
   gtk_widget_hide (hbox);
 
   /* get the hbox (content area) of the info bar */
   hbox = gtk_info_bar_get_content_area (GTK_INFO_BAR (warning));
-  gtk_info_bar_set_message_type (GTK_INFO_BAR (warning), GTK_MESSAGE_WARNING);
-
-#else
-
-  /* create a new hbox to and add it inside the main hbox (self) */
-  hbox = gtk_hbox_new (FALSE, 6);
-  warning->priv->hbox = hbox;
-  gtk_container_set_border_width (GTK_CONTAINER (hbox), warning->priv->padding);
-  //gtk_box_pack_start (GTK_BOX (warning), hbox, TRUE, TRUE, 0);
-  gtk_container_add (GTK_CONTAINER (warning), hbox);
-  gtk_widget_show (hbox);
-
-  /* set the text colour of the warning label */
-  gtk_widget_modify_fg (GTK_WIDGET (warning->priv->label),
-                        GTK_STATE_NORMAL,
-                        &warning->priv->fg_color);
-
-#endif
 
   gtk_box_pack_start (GTK_BOX (hbox), priv->warning_image, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (hbox), priv->label, TRUE, TRUE, 0);
@@ -1086,7 +909,50 @@ xfce_root_warning_set_show_icon (XfceRootWarning *warning,
 }
 
 
-#ifndef USE_INFOBAR
+static void
+xfce_root_warning_update_colors (XfceRootWarning *warning)
+{
+  gchar *text;
+  gchar *fg;
+  gchar *bg;
+
+  /* get colors as strings */
+  fg = gdk_color_to_string (&(warning->priv->fg_color));
+  bg = gdk_color_to_string (&(warning->priv->bg_color));
+
+  /* style to override the old colours with the current ones */
+  text = g_strdup_printf (
+    "style \"xfce-root-warning-style\" {\n"
+    "  color[\"info_bg_color\"] = \"%s\"\n"
+    "  color[\"info_fg_color\"] = \"%s\"\n"
+    "  color[\"warning_bg_color\"] = \"%s\"\n"
+    "  color[\"warning_fg_color\"] = \"%s\"\n"
+    "  color[\"question_bg_color\"] = \"%s\"\n"
+    "  color[\"question_fg_color\"] = \"%s\"\n"
+    "  color[\"error_bg_color\"] = \"%s\"\n"
+    "  color[\"error_fg_color\"] = \"%s\"\n"
+    "  color[\"other_bg_color\"] = \"%s\"\n"
+    "  color[\"other_fg_color\"] = \"%s\"\n"
+    "}\n"
+    "class \"XfceRootWarning\" style \"xfce-root-warning-style\"\n",
+    bg, fg,
+    bg, fg,
+    bg, fg,
+    bg, fg,
+    bg, fg);
+
+  /* override existing colors */
+  gtk_rc_parse_string (text);
+
+  /* cleanup */
+  g_free (fg);
+  g_free (bg);
+  g_free (text);
+
+  /* this causes the infobar to use the new colors */
+  gtk_info_bar_set_message_type (GTK_INFO_BAR (warning), GTK_MESSAGE_WARNING);
+}
+
 
 /**
  * xfce_root_warning_get_fg_color:
@@ -1128,6 +994,7 @@ xfce_root_warning_set_fg_color (XfceRootWarning *warning,
   if (fg_color && !gdk_color_equal (&warning->priv->fg_color, fg_color))
     {
       memcpy (&warning->priv->fg_color, fg_color, sizeof (GdkColor));
+      xfce_root_warning_update_colors (warning);
       gtk_widget_modify_fg (warning->priv->label, GTK_STATE_NORMAL, &warning->priv->fg_color);
       g_object_notify (G_OBJECT (warning), "fg-color");
     }
@@ -1173,65 +1040,8 @@ xfce_root_warning_set_bg_color (XfceRootWarning *warning,
     {
 
       memcpy (&warning->priv->bg_color, bg_color, sizeof (GdkColor));
-
-      /* stored so we don't need to compute it on each expose-event */
-      warning->priv->cairo_bg_color.red   = (gdouble) ((gdouble) bg_color->red / (gdouble) G_MAXUINT16);
-      warning->priv->cairo_bg_color.green = (gdouble) ((gdouble) bg_color->green / (gdouble) G_MAXUINT16);
-      warning->priv->cairo_bg_color.blue  = (gdouble) ((gdouble) bg_color->blue / (gdouble) G_MAXUINT16);
-
-      /* re-draw with the new background colour */
-      gtk_widget_queue_draw (GTK_WIDGET (warning));
-
+      xfce_root_warning_update_colors (warning);
       g_object_notify (G_OBJECT (warning), "bg-color");
-    }
-}
-
-
-/**
- * xfce_root_warning_get_highlight:
- * @warning: An #XfceRootWarning widget.
- *
- * Gets whether or not a highlighting effect is drawn over the
- * background colour.
- *
- * Returns: %TRUE if the highlighting effect is active, %FALSE otherwise.
- **/
-gboolean
-xfce_root_warning_get_highlight (XfceRootWarning *warning)
-{
-  g_return_val_if_fail (XFCE_IS_ROOT_WARNING (warning), FALSE);
-  return warning->priv->highlight;
-}
-
-
-/**
- * xfce_root_warning_set_highlight:
- * @warning  : An #XfceRootWarning widget.
- * @highlight: Whether ot not use the highlighting effect.
- *
- * Sets whether or not a highlighting effect is drawn over the
- * background colour.  If @highlighting is %TRUE, during the @warning
- * widget's expose event, a gradient will be drawn over the background
- * colour giving the widget a bit of depth.
- **/
-void
-xfce_root_warning_set_highlight (XfceRootWarning *warning,
-                                 gboolean         highlight)
-{
-  gboolean changed;
-
-  g_return_if_fail (XFCE_IS_ROOT_WARNING (warning));
-
-  changed = (highlight != warning->priv->highlight);
-
-  if (changed)
-    {
-      warning->priv->highlight = highlight;
-
-      /* re-draw with the new highlight setting */
-      gtk_widget_queue_draw (GTK_WIDGET (warning));
-
-      g_object_notify (G_OBJECT (warning), "highlight");
     }
 }
 
@@ -1267,7 +1077,8 @@ void
 xfce_root_warning_set_padding (XfceRootWarning *warning,
                                guint            padding)
 {
-  gboolean changed;
+  gboolean   changed;
+  GtkWidget *hbox;
 
   g_return_if_fail (XFCE_IS_ROOT_WARNING (warning));
 
@@ -1276,9 +1087,8 @@ xfce_root_warning_set_padding (XfceRootWarning *warning,
   if (changed)
     {
       warning->priv->padding = padding;
-      gtk_container_set_border_width (GTK_CONTAINER (warning->priv->hbox), padding);
+      hbox = gtk_info_bar_get_content_area (GTK_INFO_BAR (warning));
+      gtk_container_set_border_width (GTK_CONTAINER (hbox), padding);
       g_object_notify (G_OBJECT (warning), "padding");
     }
 }
-
-#endif /* USE_INFOBAR */
