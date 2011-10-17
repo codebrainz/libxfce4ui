@@ -12,8 +12,10 @@
         <property id="icon-name" themed-icon="True" ignore="False"/>
       </properties>
     </glade-widget-class>
+    <glade-widget-class name="XfceRootWarning" generic-name="xfce-root-warning" _title="Root Warning"/>
   </glade-widget-classes>
   <glade-widget-group name="xfce4-widgets" _title="Xfce 4 Widgets">
     <glade-widget-class-ref name="XfceTitledDialog"/>
+    <glade-widget-class-ref name="XfceRootWarning"/>
   </glade-widget-group>
 </glade-catalog>
